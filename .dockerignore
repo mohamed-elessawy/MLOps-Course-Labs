@@ -1,0 +1,13 @@
+.venv
+.git
+.gitignore
+.env
+__pycache__
+.ruff_cache/
+.pytest_cache
+.coverage
+htmlcov
+*.pyc
+*.pyo
+data/Churn_Modelling.csv
+tests/
