@@ -5,8 +5,6 @@ from pydantic import BaseModel
 from app.logger_setup import setup_logging
 from app.model_utils import FEATURE_COLS, predict_churn, transformer
 
-from litestar.openapi import OpenAPIConfig
-from litestar.openapi.plugins import SwaggerRenderPlugin
 
 logger = setup_logging()
 
@@ -59,9 +57,4 @@ async def predict(data: ChurnRequest) -> dict:
 
 app = Litestar(
     route_handlers=[root, health, predict],
-    openapi_config=OpenAPIConfig(
-        title="Churn Prediction API",
-        version="1.0.0",
-        render_plugins=[SwaggerRenderPlugin()],
-    ),
 )

@@ -3,6 +3,7 @@ from litestar.testing import TestClient
 from app.model_utils import predict_churn, transformer
 from main import app
 import pandas as pd
+import pytest
 
 # sample test
 SAMPLE_ROW = {
@@ -39,14 +40,12 @@ def test_predict_churn_returns_valid_prediction():
     assert result in (0, 1)
 
 
-def test_predict_churn_with_zeros():
-    zero_row = {col: 0 for col in FEATURE_COLS}
-    zero_row["Geography"] = "France"
-    zero_row["Gender"] = "Female"
-    raw = pd.DataFrame([zero_row])[FEATURE_COLS]
-    features = transformer.transform(raw)[0].tolist()
-    result = predict_churn(features)
-    assert result in (0, 1)
+def test_predict_churn_with_garbage_input():
+    with pytest.raises(Exception):
+        garbage_row = {col: "abc" for col in FEATURE_COLS}
+        raw = pd.DataFrame([garbage_row])[FEATURE_COLS]
+        features = transformer.transform(raw)[0].tolist()
+        predict_churn(features)
 
 
 # ---------------------------------------------------------------------------
