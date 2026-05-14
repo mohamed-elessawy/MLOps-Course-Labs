@@ -7,30 +7,60 @@ Then open:
     http://localhost:8000/schema/swagger
 """
 
-from litestar import Litestar
+import pandas as pd
+from litestar import Litestar, get, post
 from pydantic import BaseModel
 
 from app.logger_setup import setup_logging
+from app.model_utils import FEATURE_COLS, predict_churn, transformer
+
+from litestar.openapi import OpenAPIConfig
+from litestar.openapi.plugins import SwaggerRenderPlugin
 
 logger = setup_logging()
 
 
-# ---------------------------------------------------------------------------
-# Request Schema
-# ---------------------------------------------------------------------------
 class ChurnRequest(BaseModel):
-    # TODO 1: Add one field (type float) per feature your model expects
-    pass
+    CreditScore: float
+    Geography: str
+    Gender: str
+    Age: float
+    Tenure: float
+    Balance: float
+    NumOfProducts: float
+    HasCrCard: float
+    IsActiveMember: float
+    EstimatedSalary: float
 
 
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
-# TODO 2: Create a GET endpoint at "/" that returns a welcome message
-#         Log that the home endpoint was accessed
 
-# TODO 3: Create a GET endpoint at "/health" that returns {"status": "healthy"}
+@get("/")
+async def root() -> dict:
+    logger.info("Root endpoint called")
+    return {"message": "Welcome to the Churn Prediction API"}
+
+
+@get("/health")
+async def health() -> dict:
+    logger.info("Health check called")
+    return {"status": "healthy"}
+
+
+@post("/predict")
+async def predict(data: ChurnRequest) -> dict:
+
+    raw = pd.DataFrame([data.model_dump()])[FEATURE_COLS]
+    features = transformer.transform(raw)[0].tolist()
+
+    result = predict_churn(features)
+    logger.info(f"Prediction requested | input: {data.model_dump()} | result: {result}")
+
+    return {"churn_prediction": result}
+
 
 # TODO 4: Create a POST endpoint at "/predict" that:
 #         - Accepts a ChurnRequest as the data parameter
@@ -43,7 +73,12 @@ class ChurnRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
-# TODO 5: Register your endpoint functions in the list below
+
 app = Litestar(
-    route_handlers=[],
+    route_handlers=[root, health, predict],
+    openapi_config=OpenAPIConfig(
+        title="Churn Prediction API",
+        version="1.0.0",
+        render_plugins=[SwaggerRenderPlugin()],
+    ),
 )

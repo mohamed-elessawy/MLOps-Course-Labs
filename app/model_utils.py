@@ -1,24 +1,33 @@
-"""
-Model loading and prediction logic.
+import joblib
+import pandas as pd
 
-The model must be loaded ONCE at module level, NOT inside the predict function.
-"""
+model = joblib.load("data/model.pkl")
+transformer = joblib.load("column_transformer/column_transformer.joblib")
 
-# TODO 1: Load your serialized churn model from data/model.joblib
-model = ...
+FEATURE_COLS = [
+    "CreditScore",
+    "Geography",
+    "Gender",
+    "Age",
+    "Tenure",
+    "Balance",
+    "NumOfProducts",
+    "HasCrCard",
+    "IsActiveMember",
+    "EstimatedSalary",
+]
 
 
 def predict_churn(features: list[float]) -> int:
-    """
-    Takes a list of feature values and returns a churn prediction (0 or 1).
-    """
-    # TODO 2: Use model.predict() to get a prediction and return it as an int
-    #         Hint: model.predict() expects a 2D array
-    pass
+    prediction = model.predict([features])
+    return int(prediction[0])
 
 
 if __name__ == "__main__":
-    # TODO 3: Replace with sample features that match your model
-    sample = []
-    print(f"Input:      {sample}")
-    print(f"Prediction: {predict_churn(sample)}")
+    df = pd.read_csv("data/Churn_Modelling.csv", nrows=1)
+    raw_row = df.iloc[0:1][FEATURE_COLS]
+    print(f"Raw input:\n{raw_row.to_string()}\n")
+
+    features = transformer.transform(raw_row)[0].tolist()
+    print(f"Transformed features: {features}\n")
+    print(f"Prediction:           {predict_churn(features)}")

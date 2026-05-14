@@ -1,34 +1,83 @@
-"""
-Tests for the Churn Prediction API.
+from litestar.testing import TestClient
 
-Run with:
-    pytest tests/ -v
-    pytest tests/ -v --cov=app --cov=main --cov-report=term-missing
-"""
+from app.model_utils import predict_churn, transformer
+from main import app
+import pandas as pd
+
+# sample test
+SAMPLE_ROW = {
+    "CreditScore": 619,
+    "Geography": "France",
+    "Gender": "Female",
+    "Age": 42,
+    "Tenure": 2,
+    "Balance": 0.0,
+    "NumOfProducts": 1,
+    "HasCrCard": 1,
+    "IsActiveMember": 1,
+    "EstimatedSalary": 101348.88,
+}
+
+FEATURE_COLS = [
+    "CreditScore",
+    "Geography",
+    "Gender",
+    "Age",
+    "Tenure",
+    "Balance",
+    "NumOfProducts",
+    "HasCrCard",
+    "IsActiveMember",
+    "EstimatedSalary",
+]
 
 
-# ---------------------------------------------------------------------------
-# Function Tests
-# ---------------------------------------------------------------------------
+def test_predict_churn_returns_valid_prediction():
+    raw = pd.DataFrame([SAMPLE_ROW])[FEATURE_COLS]
+    features = transformer.transform(raw)[0].tolist()
+    result = predict_churn(features)
+    assert result in (0, 1)
 
-# TODO 1: Write a test that calls predict_churn() directly with sample features
-#         and asserts the result is 0 or 1
-#         Hint: import predict_churn from app.model_utils
 
-# TODO 2 (bonus): Write another function test with edge-case inputs
+def test_predict_churn_with_zeros():
+    zero_row = {col: 0 for col in FEATURE_COLS}
+    zero_row["Geography"] = "France"
+    zero_row["Gender"] = "Female"
+    raw = pd.DataFrame([zero_row])[FEATURE_COLS]
+    features = transformer.transform(raw)[0].tolist()
+    result = predict_churn(features)
+    assert result in (0, 1)
 
 
 # ---------------------------------------------------------------------------
 # Endpoint Tests
 # ---------------------------------------------------------------------------
 
-# TODO 3: Write a test that POSTs to /predict with valid JSON
-#         and checks the status code and response body
-#         Hint: Litestar POST returns 201, not 200
-#         Hint: use `with TestClient(app=app) as client:`
 
-# TODO 4: Write a test for GET /health
+def test_predict_endpoint():
+    with TestClient(app=app) as client:
+        response = client.post("/predict", json=SAMPLE_ROW)
+        assert response.status_code == 201
+        body = response.json()
+        assert "churn_prediction" in body
+        assert body["churn_prediction"] in (0, 1)
 
-# TODO 5: Write a test for GET /
 
-# TODO 6 (bonus): Test that invalid input returns status 400
+def test_health_endpoint():
+    with TestClient(app=app) as client:
+        response = client.get("/health")
+        assert response.status_code == 200
+        assert response.json() == {"status": "healthy"}
+
+
+def test_root_endpoint():
+    with TestClient(app=app) as client:
+        response = client.get("/")
+        assert response.status_code == 200
+        assert "message" in response.json()
+
+
+def test_predict_invalid_input():
+    with TestClient(app=app) as client:
+        response = client.post("/predict", json={"invalid_field": "garbage"})
+        assert response.status_code == 400
