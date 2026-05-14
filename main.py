@@ -1,12 +1,3 @@
-"""
-Churn Prediction API
-
-Run with:
-    litestar --app main:app run --reload
-Then open:
-    http://localhost:8000/schema/swagger
-"""
-
 import pandas as pd
 from litestar import Litestar, get, post
 from pydantic import BaseModel
@@ -60,14 +51,6 @@ async def predict(data: ChurnRequest) -> dict:
     logger.info(f"Prediction requested | input: {data.model_dump()} | result: {result}")
 
     return {"churn_prediction": result}
-
-
-# TODO 4: Create a POST endpoint at "/predict" that:
-#         - Accepts a ChurnRequest as the data parameter
-#         - Extracts features into a list
-#         - Calls predict_churn(features)
-#         - Returns the prediction
-#         - Logs the input features and the prediction result
 
 
 # ---------------------------------------------------------------------------
