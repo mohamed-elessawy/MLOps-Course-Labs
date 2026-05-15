@@ -72,5 +72,5 @@ jobs:
                docker rm churn-api || true && \
                docker run -d \
                  --name churn-api \
-                 -p 443:8000 \
+                 -p 80:8000 \
                  ${{ secrets.DOCKERHUB_USERNAME }}/churn-api:latest"
