@@ -9,7 +9,13 @@ from litestar.exceptions import ValidationException
 from pydantic import BaseModel
 
 from app.logger_setup import setup_logging
-from app.model_utils import FEATURE_COLS, predict_churn, predict_proba, transformer
+from app.model_utils import (
+    FEATURE_COLS,
+    baseline_stats,
+    predict_churn,
+    predict_proba,
+    transformer,
+)
 
 load_dotenv()
 
@@ -48,10 +54,7 @@ def validation_exception_handler(
             }
         ],
     )
-    return Response(
-        content={"detail": exc.detail},
-        status_code=400,
-    )
+    return Response(content={"detail": exc.detail}, status_code=400)
 
 
 @get("/")
@@ -94,10 +97,29 @@ async def predict(data: ChurnRequest, request: Request) -> dict:
 
     raw = pd.DataFrame([data.model_dump()])[FEATURE_COLS]
     features = transformer.transform(raw)[0].tolist()
+
+    inference_start = time.time()
     result = predict_churn(features)
+
     probability = predict_proba(features)
+    inference_time_ms = (time.time() - inference_start) * 1000
 
     response_time_ms = (time.time() - start_time) * 1000
+
+    drift_signals = {
+        "credit_score_drift": abs(
+            data.CreditScore - baseline_stats["CreditScore"]["mean"]
+        )
+        / baseline_stats["CreditScore"]["std"],
+        "age_drift": abs(data.Age - baseline_stats["Age"]["mean"])
+        / baseline_stats["Age"]["std"],
+        "balance_drift": abs(data.Balance - baseline_stats["Balance"]["mean"])
+        / baseline_stats["Balance"]["std"],
+        "salary_drift": abs(
+            data.EstimatedSalary - baseline_stats["EstimatedSalary"]["mean"]
+        )
+        / baseline_stats["EstimatedSalary"]["std"],
+    }
 
     logger.info(f"Prediction requested | input: {data.model_dump()} | result: {result}")
 
@@ -118,16 +140,16 @@ async def predict(data: ChurnRequest, request: Request) -> dict:
                 "gender": data.Gender,
                 "num_of_products": data.NumOfProducts,
                 "is_active_member": data.IsActiveMember,
-                # Combined churn signal
-                "high_risk_signal": data.Balance == 0 and data.IsActiveMember == 0,
                 # Model metrics
                 "predicted_class": result,
                 "predicted_label": "churn" if result == 1 else "no_churn",
                 "churn_probability": probability,
-                "high_risk_prediction": probability > 0.7,
+                "inference_time_ms": inference_time_ms,
                 # Headers
                 "user_agent": request.headers.get("user-agent", "unknown"),
                 "content_type": request.headers.get("content-type", "unknown"),
+                # Drift signals
+                **drift_signals,
             }
         ],
     )
