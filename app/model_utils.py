@@ -23,6 +23,11 @@ def predict_churn(features: list[float]) -> int:
     return int(prediction[0])
 
 
+def predict_proba(features: list[float]) -> float:
+    proba = model.predict_proba([features])
+    return round(float(proba[0][1]), 4)
+
+
 if __name__ == "__main__":
     df = pd.read_csv("data/Churn_Modelling.csv", nrows=1)
     raw_row = df.iloc[0:1][FEATURE_COLS]
